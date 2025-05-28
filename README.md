@@ -41,7 +41,7 @@ This script utilizes functions from:
 - `df_handling.py`: Functions for loading and preprocessing data.
 - `io_funcs.py`: Input/output operations, including reading from and writing to files.
 
-Ensure that the `multilayer_packages.root` data file is present in the repository directory, as it's required for the analysis.
+Ensure that the `multilayer_packages.root` data file is present in the parent directory, as it's required for the analysis.
 
 ## File Structure
 

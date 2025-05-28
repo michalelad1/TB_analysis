@@ -1,6 +1,7 @@
 import os
 import uproot
 import pandas as pd
+import scipy.io as sio
 import pyarrow.parquet as pq
 
 
@@ -44,5 +45,11 @@ def load_df(filename, filters=None):
     df = table.to_pandas()
     print(f"Loaded .parquet file with columns {df.columns.tolist()}")
     return df
+
+
+def write_mat_file(filename, data_dict, path="."):
+    filename = verify_file_extension(filename, ".mat")
+    outfile = path + "/" + filename
+    sio.savemat(outfile, data_dict)
 
 

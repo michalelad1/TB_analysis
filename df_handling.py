@@ -1,33 +1,42 @@
 import pandas as pd
+from run_params import PLANE_COL, CHANNEL_COL, AMPLITUDE_COL, EVENT_ID_COL, PLANE_ENERGY_COL, SHOWER_ENERGY_COL
 
 
 def flatten_calo_df(df):
     df = df.drop(columns=["toa"], errors="ignore")
-    df["showerEnergy"] = df["amplitude"].apply(sum)
-    flat_df = df.explode(["planeID", "channelID", "amplitude"])
-    plane_energy = flat_df.groupby(["TLU_number", "planeID"])["amplitude"].sum().reset_index()
-    plane_energy.rename(columns={"amplitude": "planeEnergy"}, inplace=True)
-    flat_df = flat_df.merge(plane_energy, on=["TLU_number", "planeID"], how="left")
+    df[SHOWER_ENERGY_COL] = df[AMPLITUDE_COL].apply(sum)
+    flat_df = df.explode([PLANE_COL, CHANNEL_COL, AMPLITUDE_COL])
+    plane_energy = flat_df.groupby([EVENT_ID_COL, PLANE_COL])[AMPLITUDE_COL].sum().reset_index()
+    plane_energy.rename(columns={AMPLITUDE_COL: PLANE_ENERGY_COL}, inplace=True)
+    flat_df = flat_df.merge(plane_energy, on=[EVENT_ID_COL, PLANE_COL], how="left")
     return flat_df
 
 
-def group_hits(df, group_cols=["TLU_number"], list_cols=["planeID", "channelID", "amplitude"], drop_cols=["planeEnergy"]):
+def group_hits(df, group_cols, list_cols=None, drop_cols=None):
     """
     Group a flattened DataFrame by specified columns.
-    Default parameters fully group hits back into events/showers based on the TB25 df structure
 
     Parameters:
         df (pd.DataFrame): The input DataFrame.
         group_cols (list): Columns to group by.
-                            If None, defaults to "TLU_number"
-        list_cols (list): Columns to aggregate into lists if not in group_cols. Can be an empty list.
-        drop_cols (list): Columns to drop entirely before grouping. Can be an empty list.
+        list_cols (list): Columns to aggregate into lists if not in group_cols.
+        drop_cols (list): Columns to drop entirely before grouping.
+
+    Example:
+        To fully group hits back into events/showers based on the TB25 DataFrame structure:
+            group_cols = [EVENT_ID_COL]
+            list_cols = [PLANE_COL, CHANNEL_COL, AMPLITUDE_COL]
+            drop_cols = [PLANE_ENERGY_COL]
 
     Returns:
         pd.DataFrame: Aggregated DataFrame.
     """
 
-    df = df.drop(columns=drop_cols, errors="ignore")
+    if list_cols is None:
+        list_cols = []
+
+    if drop_cols is not None:
+        df = df.drop(columns=drop_cols, errors="ignore")
 
     agg_dict = {}
 
@@ -46,9 +55,9 @@ def group_hits(df, group_cols=["TLU_number"], list_cols=["planeID", "channelID",
 def filter_amplitude_range(df, min_val=None, max_val=None):
     filtered_df = df
     if min_val is not None:
-        filtered_df = filtered_df[filtered_df["amplitude"] >= min_val]
+        filtered_df = filtered_df[filtered_df[AMPLITUDE_COL] >= min_val]
     if max_val is not None:
-        filtered_df = filtered_df[filtered_df["amplitude"] <= max_val]
+        filtered_df = filtered_df[filtered_df[AMPLITUDE_COL] <= max_val]
     return filtered_df.reset_index(drop=True)
 
 
@@ -62,8 +71,8 @@ def filter_single_column(df, column_name, vals):
 
 
 def filter_df(df, planes=None, channels=None, amp_min=None, amp_max=None):
-    df = filter_single_column(df, "planeID", planes)
-    df = filter_single_column(df, "channelID", channels)
+    df = filter_single_column(df, PLANE_COL, planes)
+    df = filter_single_column(df, CHANNEL_COL, channels)
     df = filter_amplitude_range(df, amp_min, amp_max)
     return df
 

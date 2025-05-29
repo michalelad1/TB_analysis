@@ -72,13 +72,6 @@ def init_run(func_to_run):
        :param function func_to_run: A function to call after init
     """
 
-    # Create needed folders for plots
-    path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/"
-    os.makedirs(path, exist_ok=True)  # general run folder
-    for i in run_params.LAYERS:
-        os.makedirs(path + f'1D hists/Energy per channel/Layer {i}/', exist_ok=True)  # folder for 1D hists
-    os.makedirs(path + 'Heatmaps', exist_ok=True)  # folder for 2D hists
-
     # print args
     print("###############################")
     print(f"Run number: {run_params.RUN_NUM}")
@@ -88,8 +81,18 @@ def init_run(func_to_run):
     start_time = time.time()
 
     try:
+        # get TB data
         df = get_data(run_params.INPUT_FILE_PATH, run_params.INPUT_FILE_TYPE,
                       root_tree=run_params.ROOT_TREE, parquet_filter=run_params.PARQUET_FILTER)
+
+        # Create folders for plots
+        path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/"
+        os.makedirs(path, exist_ok=True)  # general run folder
+        for i in run_params.LAYERS:
+            os.makedirs(path + f'1D hists/Energy per channel/Layer {i}/', exist_ok=True)  # folder for 1D hists
+        os.makedirs(path + 'Heatmaps', exist_ok=True)  # folder for 2D hists
+
+        # run function
         func_to_run(df)
     except ZeroDivisionError:
         print(f"Run {run_params.RUN_NUM} failed due to a zero division error")

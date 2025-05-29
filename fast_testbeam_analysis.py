@@ -1,9 +1,8 @@
 import init_funcs
 import pandas as pd
-from df_handling import filter_df, unique_df, flatten_calo_df
+from plotting import plot_shower_energy_dist, plot_channel_energy_dist, plot_layer_energy_dist, plot_average_longitudinal_profile
 from run_params import LAYERS, CHANNELS
-from run_params import EVENT_ID_COL, PLANE_COL, CHANNEL_COL, AMPLITUDE_COL, PLANE_ENERGY_COL, SHOWER_ENERGY_COL
-import tb_helpers_v2025 as tb_util
+from run_params import EVENT_ID_COL, PLANE_COL, CHANNEL_COL, AMPLITUDE_COL
 
 
 def plot_manager(df):
@@ -15,25 +14,17 @@ def plot_manager(df):
     """
 
     # get eventID, showerEnergy >> remove duplicates >> plot 1D histogram of showerEnergy
-    showers = unique_df(df[[EVENT_ID_COL, SHOWER_ENERGY_COL]])
-    print(showers)
-    # call to plot showers
+    plot_shower_energy_dist(df)
 
     # get eventID, planeID, planeEnergy >> remove duplicates >> plot longitudinal profile
-    plane_energies = unique_df(df[[EVENT_ID_COL, PLANE_COL, PLANE_ENERGY_COL]])
-    print(plane_energies)
-    # call to plot longitudinal profile
-    # call to plot 1D histogram of planeEnergy
+    plot_average_longitudinal_profile(df)
 
-    # for each layer
-    #   >> plot 1D histogram of planeEnergy
-    #   for each channel
-    #       >> >> plot energy distribution (1D histogram)
+    # for each layer >> plot 1D histogram of planeEnergy
     for layer in LAYERS:
+        plot_layer_energy_dist(df, layer)
+        # for each channel >> plot energy distribution (1D histogram)
         for channel in CHANNELS:
-            channel_energies = filter_df(df, planes=layer, channels=channel)
-            # print(channel_energies)
-            # call to plot 1D histogram of AMPLITUDE_COL
+            plot_channel_energy_dist(df, channel, layer)
 
 
 if __name__ == "__main__":
@@ -50,7 +41,7 @@ if __name__ == "__main__":
         PLANE_COL: [[0, 1], [2, 2]]
     })
 
-    print(df)
-    flat_df = flatten_calo_df(df)
-    print(flat_df)
-    plot_manager(flat_df)
+    # print(df)
+    # flat_df = flatten_calo_df(df)
+    # print(flat_df)
+    # plot_manager(flat_df)

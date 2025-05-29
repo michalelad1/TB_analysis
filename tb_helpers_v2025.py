@@ -1,4 +1,6 @@
 import run_params
+from df_handling import filter_df, unique_df
+from run_params import EVENT_ID_COL, PLANE_COL, CHANNEL_COL, AMPLITUDE_COL, PLANE_ENERGY_COL, SHOWER_ENERGY_COL
 
 
 def get_noisy_ch(layer):
@@ -25,6 +27,12 @@ def channel_to_sensor_coord(ch):
     col = ch % 20
     row = ch // 20
     return col, row
+
+
+def get_layer_energies(df, layer):
+    layer_df = filter_df(df, planes=layer)
+    layer_df = unique_df(layer_df[[EVENT_ID_COL, PLANE_COL, PLANE_ENERGY_COL]])
+    return layer_df[PLANE_ENERGY_COL].to_numpy()
 
 
 

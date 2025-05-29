@@ -7,9 +7,7 @@ import pyarrow.parquet as pq
 
 def verify_file_extension(filename, extension):
     root, ext = os.path.splitext(filename)
-    if ext.lower() != extension.lower():
-        root += extension
-    return root
+    return root + extension
 
 
 def root_to_df(file_name, tree_name):

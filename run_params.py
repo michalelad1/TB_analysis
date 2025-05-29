@@ -6,12 +6,12 @@ INPUT_FILE_TYPE = None
 INPUT_FILE_PATH = None
 ROOT_TREE = None
 PARQUET_FILTER = None
-RESULTS_DIR = "./Plots"
-
 
 # --- CONSTANTS --- #
-
-NOISY_CHANNELS = {layer: {} for layer in range(10)}  # NOT YET INITIALIZED for TB 2025 (to be determined)
+RESULTS_DIR = "./Plots"
+LAYERS = list(range(10))
+CHANNELS = list(range(256))
+NOISY_CHANNELS = {layer: {} for layer in LAYERS}  # NOT YET INITIALIZED for TB 2025 (to be determined)
 
 # Directories and file names
 INPUT_FILE_REGEX = "../TB_FIRE_*"  # directory and name pattern of input files
@@ -30,9 +30,6 @@ def init_vars(run, ext, tree, filters):
     # set variables
     global RUN_NUM
     RUN_NUM = run
-
-    global RESULTS_DIR
-    RESULTS_DIR += f"/{RUN_NUM}/"
 
     global INPUT_FILE_TYPE
     INPUT_FILE_TYPE = ext

@@ -2,7 +2,6 @@ import init_funcs
 import pandas as pd
 from plotting import *
 from run_params import LAYERS, CHANNELS
-from run_params import EVENT_ID_COL, PLANE_COL, CHANNEL_COL, AMPLITUDE_COL
 
 
 def plot_manager(df):
@@ -19,8 +18,9 @@ def plot_manager(df):
     # get eventID, planeID, planeEnergy >> remove duplicates >> plot longitudinal profile
     plot_average_longitudinal_profile(df)
 
-    # for each layer >> plot 1D histogram of planeEnergy
-    plot_all_layers(df)
+    # for each layer >> plot 1D histogram of planeEnergy and 2D heatmap of channels
+    plot_channel_frequency(df)
+    plot_all_layers_energy_dist(df)
     for layer in LAYERS:
         # for each channel >> plot energy distribution (1D histogram)
         for channel in CHANNELS:

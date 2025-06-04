@@ -1,4 +1,5 @@
 import run_params
+import numpy as np
 from df_handling import filter_df, unique_df
 from run_params import EVENT_ID_COL, PLANE_COL, CHANNEL_COL, AMPLITUDE_COL, PLANE_ENERGY_COL, SHOWER_ENERGY_COL
 
@@ -33,6 +34,17 @@ def get_layer_energies(df, layer):
     layer_df = filter_df(df, planes=layer)
     layer_df = unique_df(layer_df[[EVENT_ID_COL, PLANE_COL, PLANE_ENERGY_COL]])
     return layer_df[PLANE_ENERGY_COL].to_numpy()
+
+
+def calc_freq(data):
+    rows = 13
+    cols = 20
+    freq = np.zeros((rows, cols))
+    unique_channels, counts = np.unique(data, return_counts=True)
+    for i, ch in enumerate(unique_channels):
+        x, y = channel_to_sensor_coord(ch)
+        freq[rows-y-1, x] = counts[i]  # TB count is from the bottom left corner; Python counts from the top left
+    return freq
 
 
 

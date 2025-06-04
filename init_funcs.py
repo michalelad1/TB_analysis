@@ -89,8 +89,8 @@ def init_run(func_to_run):
         path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/"
         os.makedirs(path, exist_ok=True)  # general run folder
         for i in run_params.LAYERS:
-            os.makedirs(path + f'1D hists/Energy per channel/Layer {i}/', exist_ok=True)  # folder for 1D hists
-        os.makedirs(path + 'Heatmaps', exist_ok=True)  # folder for 2D hists
+            os.makedirs(path + f'Energy per channel/Layer {i}/', exist_ok=True)  # folder for 1D hists
+        # os.makedirs(path + 'Heatmaps', exist_ok=True)  # folder for 2D hists
 
         # run function
         func_to_run(df)

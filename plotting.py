@@ -1,11 +1,13 @@
+import copy
 import warnings
 import run_params
 import numpy as np
 import matplotlib.pyplot as plt
-from tb_helpers_v2025 import get_layer_energies
-from df_handling import unique_df, filter_df
+from matplotlib import cm, colors
 from io_funcs import verify_file_extension
-from run_params import EVENT_ID_COL, PLANE_COL, CHANNEL_COL, AMPLITUDE_COL, PLANE_ENERGY_COL, SHOWER_ENERGY_COL
+from df_handling import unique_df, filter_df
+from tb_helpers_v2025 import get_layer_energies, calc_freq
+from run_params import EVENT_ID_COL, CHANNEL_COL, AMPLITUDE_COL, SHOWER_ENERGY_COL
 
 
 def plot_1d_hist(data, ax=None, bin_num=None, bin_step=None, log=False, title='Histogram', x_label='',
@@ -100,7 +102,7 @@ def plot_channel_energy_dist(df, pad_num, layer_num):
     channel_df = filter_df(df, planes=layer_num, channels=pad_num)
     channel_energies = channel_df[AMPLITUDE_COL].to_numpy()
     path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/"
-    path += f'1D hists/Energy per channel/Layer {layer_num}/'
+    path += f'Energy per channel/Layer {layer_num}/'
     plot_1d_hist(channel_energies, bin_step=1, title=f'Channel {pad_num} Layer {layer_num}', x_label='ADC counts',
                  path=path, out_filename=f'Channel_{pad_num}_layer_{layer_num}_energy_distribution.png')
     plt.close('all')
@@ -108,7 +110,6 @@ def plot_channel_energy_dist(df, pad_num, layer_num):
 
 def plot_layer_energy_dist(df, layer_num, path, ax):
     layer_energies = get_layer_energies(df, layer_num)
-    # path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/1D hists/"
     plot_1d_hist(layer_energies, ax, bin_step=10,
                  title=f'Total energy distribution - layer {layer_num}', x_label='ADC counts',
                  path=path, out_filename=f'Layer_{layer_num}_energy_distribution.png')
@@ -123,23 +124,121 @@ def plot_shower_energy_dist(df):
     plt.close('all')
 
 
-def plot_all_layers(df):
+def plot_all_layers_energy_dist(df):
     layers = run_params.LAYERS
 
-    # Create a figure and a 2x5 grid of subplots
-    fig, ax = plt.subplots(2, 5, figsize=(15, 8))
+    # Create a figure and a 3x4 grid of subplots
+    fig, ax = plt.subplots(3, 4, figsize=(30, 15), constrained_layout=True)
     ax = ax.flatten()  # Flatten the 2D array of axes for easy iteration
 
-    path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/1D hists/"
+    path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/"
     for i, layer in enumerate(layers):
-        plot_layer_energy_dist(df, layer, path, ax[i])
-        ax[i].set_title(f"Layer {layer}")
+        ax_num = i
+        if i >= 8:
+            ax_num += 1
+        plot_layer_energy_dist(df, layer, path, ax[ax_num])
+        ax[ax_num].set_title(f"Layer {layer}")
 
-    plt.tight_layout()
+    fig.delaxes(ax[8])
+    fig.delaxes(ax[11])
+
     save_fig(fig, path=path, out_filename="Energy_dist_all_layers")
     plt.close('all')
 
-    
+
+def plot_heatmap(data, fig=None, ax=None, log=False, title='Heatmap', x_label='', y_label='', path='./',
+                 out_filename=None, v_min=None, v_max=None):
+    """
+    Plots a 2D histogram of the data and saves.
+    :param 2D-array data: 2D array of bin heights
+    :param matplotlib.pyplot.figure fig: Optional. Figure to plot heatmap onto. If None, creates a new figure.
+    :param matplotlib.pyplot.axes ax: Optional. Axes to plot heatmap onto. If None, creates a new figure.
+    :param bool log: Optional. Flag for using log scale. Default is False.
+    :param str title: Optional. Title of the heatmap. Default is 'Heatmap'.
+    :param str x_label: Optional. Label of the x-axis. Default is an empty string.
+    :param str y_label: Optional. Label of the y-axis. Default is an empty string.
+    :param str path: Optional. Path to which the plot will be saved. Default is current directory.
+    :param str out_filename: Optional. File name of the heatmap. Default is the title param.
+    """
+
+    if fig is None or ax is None:
+        fig, ax = plt.subplots(1)
+        save = True
+    else:
+        save = False
+
+    if out_filename is None:
+        out_filename = title
+
+    # plot heatmap
+    freq, cmap, colorscale = adjust_colors(data, log=log)
+    im = ax.imshow(data, vmin=v_min, vmax=v_max, cmap=cmap, norm=colorscale)
+    # for (i, j), z in np.ndenumerate(data):
+    #     ax.text(j, i, '{:0.2f}'.format(z), ha='center', va='center')
+
+    set_heatmap_properties(ax)
+
+    # set labels etc. and save figure
+    style_fig(ax, title, x_label, y_label)
+    if save:
+        save_fig(fig, path, out_filename)
+
+    return im
+
+
+def adjust_colors(data, log=False):
+    data[data == 0] = -1
+    cmap = copy.copy(cm.get_cmap("jet"))
+    cmap.set_under('white')
+    colorscale = colors.LogNorm() if log else None
+    return data, cmap, colorscale
+
+
+def set_heatmap_properties(ax):
+    rows = 13
+    cols = 20
+    y_labels = [rows - i - 1 for i in range(rows)]
+    ax.set_xticks(list(range(cols)))
+    ax.set_yticks(list(range(rows)), labels=y_labels)
+
+    # set grid lines to form pads visually
+    for i in range(cols-1):
+        if i < rows-1:
+            ax.axhline(0.5 + i, color='gray', linewidth=0.5)
+        ax.axvline(0.5 + i, color='gray', linewidth=0.5)
+
+
+def plot_channel_frequency(df):
+    num_events = len(np.unique(df[EVENT_ID_COL].to_numpy()))
+
+    layers = run_params.LAYERS
+
+    # Create a figure and a 3x4 grid of subplots
+    fig, ax = plt.subplots(3, 4, figsize=(30, 15), constrained_layout=True)
+    ax = ax.flatten()  # Flatten the 2D array of axes for easy iteration
+
+    path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/"
+    for i, layer in enumerate(layers):
+        ax_num = i
+        if i >= 8:
+            ax_num += 1
+        channel_data = filter_df(df, planes=layer)
+        channel_data = unique_df(channel_data[[EVENT_ID_COL, CHANNEL_COL]])
+        channel_hits = channel_data[CHANNEL_COL].to_numpy()
+        freq = calc_freq(channel_hits)
+        freq /= num_events
+        im = plot_heatmap(freq, fig, ax[ax_num], x_label='Column', y_label='Row', path=path, v_min=0, v_max=1)
+        ax[ax_num].set_title(f"Layer {layer}")
+
+    fig.delaxes(ax[8])
+    fig.delaxes(ax[11])
+
+    fig.colorbar(im, ax=ax.ravel().tolist())
+    save_fig(fig, path=path, out_filename="Channels_frequency_all_layers")
+    plt.close('all')
+    return
+
+
 def plot_average_longitudinal_profile(df):
     layers = run_params.LAYERS
     mean_vals = []

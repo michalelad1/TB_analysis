@@ -1,212 +1,143 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 26 15:27:24 2025
-
-@author: נופר קליינמן
-"""
-
-import matplotlib.pyplot as plt
-import numpy as np
-import os
 import warnings
 import run_params
+import numpy as np
+import matplotlib.pyplot as plt
 from tb_helpers_v2025 import get_layer_energies
 from df_handling import unique_df, filter_df
 from io_funcs import verify_file_extension
 from run_params import EVENT_ID_COL, PLANE_COL, CHANNEL_COL, AMPLITUDE_COL, PLANE_ENERGY_COL, SHOWER_ENERGY_COL
 
 
-def plot_1d_hist(data, bins=100, plane=None, log=False, path='./', title='Histogram', xlabel='', filename='',
-                 x_lim=None, ylim=None):
+def plot_1d_hist(data, ax=None, bin_num=None, bin_step=None, log=False, title='Histogram', x_label='',
+                 y_label='Entries', path='./', out_filename=None, x_lim=None, y_lim=None):
     """
-    :param data: Data desired to be plotted to a histogram
-    :param runnum: Run number of the data
-    :param bins: bins to be passed onto the histogram
-    :param plane: Optional. Plane number (0,1,2)
-    :param log: Optional. Flag for using log scale. Default is False.
-    :param path: Optional. Path to which the plot will be saved. Default is current folder.
-    :param title: Optional. Title of the histogram. Default is 'Histogram'.
-    :param xlabel: Optional. Label of x axis. Default is an empty string.
-    :param filename: Optional. File name of the histogram. Default is the title param.
-    :param x_lim: Optional. x axis limits. Should be a tuple. Default is None.
-    :param ylim: Optional. y axis limits. Should be a tuple. Default is None.
-    :return: Creates a 1D histogram of the data. Plots to screen or saves in folder according to the given parameters
+    Creates a 1D histogram of the data and saves.
+    :param list data: Data desired to be plotted to a histogram
+    :param matplotlib.pyplot.axes ax: Optional. Axes to plot histogram onto. If None, creates a new figure.
+    :param int bin_num: Optional. Number of bins to be passed onto the histogram.
+    :param int bin_step: Optional. Width of bins in histogram.
+    :param bool log: Optional. Flag for using log scale for the y-axis. Default is False.
+    :param str title: Optional. Title of the histogram. Default is 'Histogram'.
+    :param str x_label: Optional. Label of the x-axis. Default is an empty string.
+    :param str y_label: Optional. Label of the y-axis. Default is 'Entries'.
+    :param str path: Optional. Path to which the plot will be saved. Default is current directory.
+    :param str out_filename: Optional. File name of the histogram. Default is the title param.
+    :param tuple x_lim: Optional. x-axis limits. Default is None.
+    :param tuple y_lim: Optional. y-axis limits. Default is None.
     """
+    # validate input data
     if data is None or len(data) == 0:
         warnings.warn("Cannot plot empty data.")
         return
+
+    if ax is None:
+        fig, ax = plt.subplots(1)
+        save = True
+    else:
+        save = False
+
+    if out_filename is None:
+        out_filename = title
+
+    bins = 'auto'
+    if bin_num:
+        bins = bin_num
+    elif bin_step:
+        min_val = min(np.min(data), 0)
+        bins = get_equal_bins(min_val, np.max(data), step=bin_step)
 
     # calculate histogram statistics
     mean_val = np.mean(data)
     std_val = np.std(data)
     entry_count = len(data)
-    fig, ax = plt.subplots(1)
-
-    if x_lim is not None:
-        ax.set_xlim(x_lim[0], x_lim[1])
-    if ylim is not None:
-        ax.set_ylim(ylim[0], ylim[1])
-    if log:
-        ax.set_yscale('log')
-        ax.set_ylabel('Entries (log scale)')
-        log_title = 'Log Scale'  # for saving in folder purposes
-    else:
-        ax.set_ylabel('Entries')
-        log_title = 'Linear Scale'  # for saving in folder purposes
 
     # create histogram
     ax.hist(data, bins=bins, histtype='bar', ec='black')
-    plt.grid(axis='y', alpha=0.75)  # add vertical grid
+    ax.grid(axis='y', alpha=0.75)  # add vertical grid
 
-    ax.legend([f'Entries = {entry_count}\nMean Value = {"{:.3f}".format(mean_val)}\nStd = {"{:.3f}".format(std_val)}'],
-              loc='best')
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-
-    full_path = path + f'/{filename}'
-    full_path = verify_file_extension(full_path, '.png')
-    plt.savefig(full_path)
-    plt.close('all')
+    # set labels etc. and save figure
+    mean_str, std_str = set_significant_digits_str(mean_val, std_val)
+    legend_lst = [f'Entries = {entry_count}\nMean Value = {mean_str}\nStd = {std_str}']
+    style_fig(ax, title, x_label, y_label, x_lim, y_lim, log, legend_lst)
+    if save:
+        save_fig(fig, path, out_filename)
 
     
-def scatter_plot(x, y, log=False, path='./', title='graph', xlabel='', ylabel='', filename='', xerror=None, yerror=None, xlim=None, ylim=None):
+def scatter_plot(x, y, x_error=None, y_error=None, log=False, title='Scatter plot', x_label='', y_label='',
+                 path='./', out_filename=None, x_lim=None, y_lim=None):
     """
-    :param x: x axes data (1D array)
-    :param y: y axes data (1D array)   
-    :param runnum: Run number of the data
-    :param log: Optional. Flag for using log scale. Default is False.
-    :param path: Optional. Path to which the plot will be saved. Default is current folder.
-    :param title: Optional. Title of the histogram. Default is 'graph'.
-    :param xlabel: Optional. Label of x axis. Default is an empty string.
-    :param ylabel: Optional. Label of y axis. Default is an empty string.
-    :param filename: Optional. File name of the histogram. Default is the title param.
-    :param xlim: Optional. x axis limits. Should be a tuple. Default is None.
-    :param ylim: Optional. y axis limits. Should be a tuple. Default is None.
-    :param xerror: Optional. x axis errors. Should be 1D array. Default is None.
-    :param yerror: Optional. y axis errors. Should be 1D array. Default is None.   
-    :return: Creates a graph of the data. Plots to screen or saves in folder according to the given parameters
+    Creates a scatter plot of the data and saves.
+    :param list x: x-axis data
+    :param list y: y-axis data
+    :param list x_error: Optional. x-axis errors. Default is None.
+    :param list y_error: Optional. y-axis errors. Default is None.
+    :param bool log: Optional. Flag for using log scale for the y-axis. Default is False.
+    :param str path: Optional. Path to which the plot will be saved. Default is current directory.
+    :param str title: Optional. Title of the plot. Default is 'Scatter plot'.
+    :param str x_label: Optional. Label of x-axis. Default is an empty string.
+    :param str y_label: Optional. Label of y-axis. Default is an empty string.
+    :param str out_filename: Optional. File name of the histogram. Default is the title param.
+    :param tuple x_lim: Optional. x-axis limits. Default is None.
+    :param tuple y_lim: Optional. y-axis limits. Default is None.
     """
+
+    if out_filename is None:
+        out_filename = title
 
     fig, ax = plt.subplots(1)
-    
-    if xlim is not None:
-        ax.set_xlim(xlim[0], xlim[1])
-    if ylim is not None:
-       ax.set_ylim(ylim[0], ylim[1])
-    if log:
-        ax.set_yscale('log')
-        ax.set_ylabel('Entries (log scale)')
-        log_title = 'Log Scale' # for saving in folder purposes
-    else:
-        ax.set_ylabel('Entries')
-        log_title = 'Linear Scale' # for saving in folder purposes
-       
-    plt.grid(True)
+    ax.errorbar(x, y, y_error, x_error, fmt='o', capsize=5)
     plt.xticks(x)  # Ensure all layer indices are shown
+    plt.grid(True)
 
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    
-    ax.errorbar(x, y, yerror, xerror, fmt='o', capsize=5)
+    style_fig(ax, title, x_label, y_label, x_lim, y_lim, log)
+    save_fig(fig, path, out_filename)
 
-    full_path = path + f'/{filename}'
-    full_path = verify_file_extension(full_path, '.png')
-    plt.savefig(full_path)
-    plt.close('all')
+    return
 
 
-# plots the Landau distribution for the given pad number in the given layer                                                
+# plots the energy distribution for the given pad number in the given layer
 def plot_channel_energy_dist(df, pad_num, layer_num):
     channel_df = filter_df(df, planes=layer_num, channels=pad_num)
     channel_energies = channel_df[AMPLITUDE_COL].to_numpy()
     path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/"
     path += f'1D hists/Energy per channel/Layer {layer_num}/'
-    plot_1d_hist(channel_energies, path=path, title=f'Channel {pad_num} Layer {layer_num}', xlabel='ADC counts',
-                 filename=f'Channel_{pad_num}_layer_{layer_num}_energy_distribution.png')
+    plot_1d_hist(channel_energies, bin_step=1, title=f'Channel {pad_num} Layer {layer_num}', x_label='ADC counts',
+                 path=path, out_filename=f'Channel_{pad_num}_layer_{layer_num}_energy_distribution.png')
+    plt.close('all')
 
 
-def plot_layer_energy_dist(df, layer_num):
+def plot_layer_energy_dist(df, layer_num, path, ax):
     layer_energies = get_layer_energies(df, layer_num)
-    path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/1D hists/"
-    plot_1d_hist(layer_energies, path=path, title=f'Total energy distribution - layer {layer_num}',
-                 xlabel='ADC counts', filename=f'Layer_{layer_num}_energy_distribution.png')
+    # path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/1D hists/"
+    plot_1d_hist(layer_energies, ax, bin_step=10,
+                 title=f'Total energy distribution - layer {layer_num}', x_label='ADC counts',
+                 path=path, out_filename=f'Layer_{layer_num}_energy_distribution.png')
 
 
 def plot_shower_energy_dist(df):
     showers = unique_df(df[[EVENT_ID_COL, SHOWER_ENERGY_COL]])
     shower_energies = showers[SHOWER_ENERGY_COL].to_numpy()
     path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/"
-    plot_1d_hist(shower_energies, path=path, title='Total energy distribution (showers)', xlabel='ADC counts',
-                 filename='Shower_energy_distribution.png')
+    plot_1d_hist(shower_energies, bin_step=100, title='Total energy distribution (showers)', x_label='ADC counts',
+                 path=path, out_filename='Shower_energy_distribution.png')
+    plt.close('all')
 
 
-def Landau_all_layers(): 
+def plot_all_layers(df):
+    layers = run_params.LAYERS
+
     # Create a figure and a 2x5 grid of subplots
     fig, ax = plt.subplots(2, 5, figsize=(15, 8))
     ax = ax.flatten()  # Flatten the 2D array of axes for easy iteration
-    #setting variables of the plot
-    log=False
-    ylim=None
-    filename=''
-    path='./'
 
-    for i in range(10):
-        
-        # Generate data for the current layer
-        data = Get_ADC_layer(i)
-        
-        # calculate histogram statistics
-        meanVal = np.mean(data)
-        stdVal = np.std(data)
-        entry_count = len(data)
-        
-        #setting variables of the plot 
-        title = f'Layer {i}'
-        xlim = [0,2*meanVal]
-        xlabel = "ADC"
-        plane = i
-        
-        binseq = 100    
-        n, bins, patches = ax[i].hist(data,range =(xlim[0], xlim[1]), bins=binseq, histtype='bar', ec='black') # create histogram
-        plt.grid(axis='y', alpha=0.75) # add vertical grid
+    path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/1D hists/"
+    for i, layer in enumerate(layers):
+        plot_layer_energy_dist(df, layer, path, ax[i])
+        ax[i].set_title(f"Layer {layer}")
 
-
-        #ax[i].legend([f'Entries = {entry_count}\nMean Value = {"{:.3f}".format(meanVal)}\nStd = {"{:.3f}".format(stdVal)}'], loc='best')
-        ax[i].set_title(title)
-        ax[i].set_xlabel(xlabel)
-        if xlim is not None:
-            ax[i].set_xlim(xlim[0], xlim[1])
-        if ylim is not None:
-            ax[i].set_ylim(ylim[0], ylim[1])
-        if log:
-            ax[i].set_yscale('log')
-            ax[i].set_ylabel('Entries (log scale)')
-            log_title = 'Log Scale' # for saving in folder purposes
-        else:
-            ax[i].set_ylabel('Entries')
-            log_title = 'Linear Scale' # for saving in folder purposes
-
-        
-        
-        ax[i].text(0.95, 0.95, f'Entries = {entry_count}\nMean: {meanVal:.2g}\nStd Dev: {stdVal:.2g}',
-                    transform=ax[i].transAxes, ha='right', va='top', fontsize=10,
-                    bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.3'))
-
-    # Adjust layout to prevent overlap
     plt.tight_layout()
-
-    try:
-        path += f'/{runnum}'
-        os.mkdir(path)
-    except:
-        pass
-    try:
-        path += f'/{log_title}'
-        os.mkdir(path)
-    except:
-        pass
-    plt.savefig(path + f'/{filename}.png')
+    save_fig(fig, path=path, out_filename="Energy_dist_all_layers")
+    plt.close('all')
 
     
 def plot_average_longitudinal_profile(df):
@@ -221,8 +152,77 @@ def plot_average_longitudinal_profile(df):
         std_vals.append(np.std(layer_data) / np.sqrt(len(layer_data)))  # Optional: SEM
 
     path = run_params.RESULTS_DIR + f"/Run {run_params.RUN_NUM}/"
-    scatter_plot(layers, mean_vals, path=path, title='Average Longitudinal Profile', xlabel='Layer Index',
-                 ylabel='ADC Average', filename='Average_Longitudinal_Profile', yerror=std_vals)
+    scatter_plot(layers, mean_vals, y_error=std_vals, title='Average Longitudinal Profile', x_label='Layer Index',
+                 y_label='ADC Average', path=path, out_filename='Average_Longitudinal_Profile')
+    plt.close('all')
 
 
-    
+def style_fig(ax, title, x_label, y_label, x_lim=None, y_lim=None, y_log=False, legend_lst=None):
+    # set axis limits
+    if x_lim is not None:
+        ax.set_xlim(x_lim[0], x_lim[1])
+    if y_lim is not None:
+        ax.set_ylim(y_lim[0], y_lim[1])
+    if y_log:
+        ax.set_yscale('log')
+        y_label += ' (log scale)'
+
+    # set labels and titles
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    if legend_lst is not None:
+        ax.legend(legend_lst, loc='best')
+
+
+def save_fig(fig, path, out_filename):
+    full_path = path + f'/{out_filename}'
+    full_path = verify_file_extension(full_path, '.png')
+    fig.savefig(full_path)
+
+
+def format_latex(num_val, sig_digits=3):
+    """Format value with `×10^{}` style if large, otherwise regular float."""
+    if sig_digits == 0:
+        sig_digits = 3
+
+    num_str = str(f"{num_val:.3g}")
+    if "e" in num_str:
+        exponent = int(np.floor(np.log10(abs(num_val))))
+        mantissa = num_val / (10 ** exponent)
+        return f"{mantissa:.{sig_digits - 1}f}×10$^{{{exponent}}}$"
+    else:
+        return num_str
+
+
+def set_significant_digits_str(value, uncertainty):
+
+    # Count sig digits in std (mantissa part) to match precision
+    if uncertainty == 0:
+        return format_latex(value), str(0)
+
+    uncertainty_str = str(f"{uncertainty:.3g}")
+    uncertainty_dec = 0
+    uncertainty_dig = 0
+    if "e" in uncertainty_str:
+        return format_latex(value), format_latex(uncertainty)
+    else:
+        uncertainty_prec = len(uncertainty_str.split(".")[-1]) if "." in uncertainty_str else 0
+        if uncertainty_prec > 0:
+            uncertainty_dec += uncertainty_prec
+        else:
+            uncertainty_dig += len(uncertainty_str)
+
+    if uncertainty_dec == 0:
+        if uncertainty_dig > 0:
+            value_str = str(f"{value:.{uncertainty_dig}g}")
+        else:
+            value_str = str(f"{value:.3g}")
+    else:
+        value_str = str(f"{value:.{uncertainty_dec}f}")
+
+    return value_str, uncertainty_str
+
+
+def get_equal_bins(min_val, max_val, step):
+    return np.arange(min_val, max_val + step, step=step)

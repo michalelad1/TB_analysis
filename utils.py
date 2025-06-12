@@ -2,6 +2,12 @@ import argparse
 
 
 def get_args(params):
+    """
+    Get user arguments and set parser.
+
+    :param list params: list of lists used to set each argument
+    :return: argparse.Namespace object of extracted data from user
+    """
     # set parser
     parser = argparse.ArgumentParser()
     # set args

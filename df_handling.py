@@ -1,6 +1,6 @@
 import pandas as pd
-from run_params import NOISY_CHANNELS
-from run_params import PLANE_COL, CHANNEL_COL, AMPLITUDE_COL, EVENT_ID_COL, PLANE_ENERGY_COL, SHOWER_ENERGY_COL
+from .run_params import NOISY_CHANNELS
+from .run_params import PLANE_COL, CHANNEL_COL, AMPLITUDE_COL, EVENT_ID_COL, PLANE_ENERGY_COL, SHOWER_ENERGY_COL
 
 
 def flatten_calo_df(df):

@@ -1,7 +1,6 @@
-import run_params
 import numpy as np
-from df_handling import filter_df, unique_df
-from run_params import EVENT_ID_COL, PLANE_COL, PLANE_ENERGY_COL, ROWS, COLS
+from .df_handling import filter_df, unique_df
+from .run_params import EVENT_ID_COL, PLANE_COL, PLANE_ENERGY_COL, ROWS, COLS
 
 
 # def get_noisy_ch(layer):

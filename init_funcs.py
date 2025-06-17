@@ -3,10 +3,10 @@ import re
 import os
 import glob
 import time
-import utils
-import run_params
-import df_handling
-from io_funcs import root_to_df, save_df, load_df
+from . import utils
+from . import df_handling
+from . import run_params
+from .io_funcs import root_to_df, save_df, load_df
 
 
 class InvalidFileTypeError(ValueError):
@@ -16,12 +16,13 @@ class InvalidFileTypeError(ValueError):
         super().__init__(message)
 
 
-def init_process(file_type, process, parquet_filter=None):
+def init_process(file_type, process, res_dir='./analysis_results/', parquet_filter=None):
     """
     Finds run numbers in directory and initializes given process.
 
     :param str file_type: ".root" or ".parquet"
     :param function process: the process to run
+    :param str res_dir: relative directory to save results
     :param str parquet_filter: Optional filters for data retrieval from a ".parquet" file
     :return:
     """
@@ -44,7 +45,8 @@ def init_process(file_type, process, parquet_filter=None):
     # run code for each file
     for run in run_numbers:
         # init variables
-        run_params.init_vars(run, file_type, parquet_filter)
+        run_dir = res_dir + f"run_{run}/"
+        run_params.init_vars(run, file_type, run_dir, parquet_filter)
         # init run
         init_run(process)
 
@@ -91,13 +93,13 @@ def init_run(func_to_run):
     try:
         # get TB data
         df = get_data(run_params.INPUT_FILE_PATH, run_params.INPUT_FILE_TYPE,
-                      root_tree=run_params.ROOT_TREE, parquet_filter=run_params.PARQUET_FILTER)
+                      root_tree=run_params.DUT_ROOT_TREE, parquet_filter=run_params.PARQUET_FILTER)
 
         # Create folders for plots
         path = run_params.RESULTS_DIR + "/energy_per_channel"
         os.makedirs(path, exist_ok=True)  # general run folder
         for i in range(len(run_params.LAYERS)):
-            os.makedirs(path + f'/layer_{run_params.LAYERS_NAMES[i]}/', exist_ok=True)  # folder for 1D hists
+            os.makedirs(path + f'/layer_slot_{run_params.LAYERS_NAMES[i]}/', exist_ok=True)  # folder for 1D hists
 
         # run function
         func_to_run(df)

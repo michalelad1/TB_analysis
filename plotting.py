@@ -1,13 +1,13 @@
 import copy
 import warnings
-import run_params
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm, colors
-from io_funcs import verify_file_extension
-from df_handling import unique_df, filter_df
-from tb_helpers_v2025 import get_layer_energies, calc_freq
-from run_params import EVENT_ID_COL, CHANNEL_COL, AMPLITUDE_COL, SHOWER_ENERGY_COL, ROWS, COLS, LAYERS
+from . import run_params
+from .io_funcs import verify_file_extension
+from .df_handling import unique_df, filter_df
+from .tb_helpers_v2025 import get_layer_energies, calc_freq
+from .run_params import EVENT_ID_COL, CHANNEL_COL, AMPLITUDE_COL, SHOWER_ENERGY_COL, ROWS, COLS, LAYERS
 
 
 def plot_shower_energy_dist(df):
@@ -20,50 +20,58 @@ def plot_shower_energy_dist(df):
     # get shower energies
     showers = unique_df(df[[EVENT_ID_COL, SHOWER_ENERGY_COL]])
     shower_energies = showers[SHOWER_ENERGY_COL].to_numpy()
+    # set x-axis limits
+    x_lim = set_lims(shower_energies)
     # plot and save histogram
-    plot_1d_hist(shower_energies, bin_step=100, title='Total energy distribution (showers)', x_label='ADC counts',
-                 path=run_params.RESULTS_DIR, out_filename='shower_energy_distribution.png')
+    plot_1d_hist(shower_energies, bin_step=50, title='Total energy distribution (showers)', x_label='ADC counts',
+                 path=run_params.RESULTS_DIR, out_filename='shower_energy_distribution.png', x_lim=x_lim)
     plt.close('all')
 
 
-def plot_layer_energy_dist(df, layer_num, path, ax):
+def plot_layer_energy_dist(df, layer_num, layer_name, ax=None):
     """
     Plot histogram of layer energy.
 
     :param pandas.DataFrame df: input data
     :param int layer_num: layer number
-    :param str path: path to save plot
     :param plt.Axes ax: axes object to plot histogram onto
+    :param str layer_name: name for layer (e.g. number of W plates)
     :return:
     """
     # get layer energy
     layer_energies = get_layer_energies(df, layer_num)
+    # set x-axis limits
+    x_lim = set_lims(layer_energies)
     # plot and save histogram
     plot_1d_hist(layer_energies, ax, bin_step=10,
-                 title=f'Total energy distribution - layer {layer_num}', x_label='ADC counts',
-                 path=path, out_filename=f'layer_{layer_num}_energy_distribution.png',
-                 x_ticks=LAYERS, x_ticks_labels=run_params.LAYERS_NAMES)
+                 title=f'Total energy distribution - layer slot {layer_name}', x_label='ADC counts',
+                 path=run_params.RESULTS_DIR, out_filename=f'layer_slot_{layer_name}_energy_distribution.png',
+                 x_lim=x_lim)
 
 
-def plot_channel_energy_dist(df, pad_num, layer_num):
+def plot_channel_energy_dist(df, pad_num, layer_num, layer_name):
     """
     Plot histogram of channel energy.
 
     :param pandas.DataFrame df: input data
     :param int pad_num: pad (channel) number
     :param int layer_num: layer number
+    :param str layer_name: name for layer (e.g. number of W plates)
     :return:
     """
-    layer_name = run_params.LAYERS_NAMES[layer_num]
     # get channel data
     channel_df = filter_df(df, planes=layer_num, channels=pad_num)
     channel_energies = channel_df[AMPLITUDE_COL].to_numpy()
-    # plot and save histogram
-    path = run_params.RESULTS_DIR
-    path += f'energy_per_channel/layer_{layer_name}/'
-    plot_1d_hist(channel_energies, bin_step=1, title=f'Channel {pad_num} Layer {layer_name}', x_label='ADC counts',
-                 path=path, out_filename=f'channel_{pad_num}_layer_{layer_name}_energy_distribution.png')
-    plt.close('all')
+    if len(channel_energies) > 0:
+        # set x-axis lim
+        x_lim = set_lims(channel_energies)
+        # plot and save histogram
+        path = run_params.RESULTS_DIR
+        path += f'energy_per_channel/layer_slot_{layer_name}/'
+        plot_1d_hist(channel_energies, bin_step=1, title=f'Channel {pad_num} Layer slot {layer_name}',
+                     x_label='ADC counts', path=path,
+                     out_filename=f'channel_{pad_num}_layer_slot_{layer_name}_energy_distribution.png', x_lim=x_lim)
+        plt.close('all')
 
 
 def plot_all_layers_energy_dist(df):
@@ -82,11 +90,9 @@ def plot_all_layers_energy_dist(df):
     # plot histogram per layer
     for layer in LAYERS:
         ax_num = layer
-        if layer >= 8:  # center 2 last plots (skip 1 axes index)
-            ax_num += 1
         # plot histogram of current layer
         plot_layer_energy_dist(df, layer, path, ax[ax_num])
-        ax[ax_num].set_title(f"Layer {run_params.LAYERS_NAMES[layer]}")
+        ax[ax_num].set_title(f"Layer slot {run_params.LAYERS_NAMES[layer]}")
 
     # delete unused axes
     fig.delaxes(ax[8])
@@ -121,7 +127,7 @@ def plot_1d_hist(data, ax=None, bin_num=None, bin_step=None, log=False, title='H
     """
     # validate input data
     if data is None or len(data) == 0:
-        warnings.warn("Cannot plot empty data.")
+        # warnings.warn("Cannot plot empty data.")
         return
 
     # create figure if needed
@@ -134,6 +140,12 @@ def plot_1d_hist(data, ax=None, bin_num=None, bin_step=None, log=False, title='H
     # set output file name
     if out_filename is None:
         out_filename = title
+
+    # count overflow
+    overflow = 0
+    if x_lim is not None:
+        overflow = len(np.where(data > x_lim[1]))
+        # print(np.where(data > x_lim[1]))
 
     # set histogram binning
     bins = 'auto'
@@ -155,7 +167,7 @@ def plot_1d_hist(data, ax=None, bin_num=None, bin_step=None, log=False, title='H
     # set labels etc. and save figure
     mean_str = format_latex(mean_val)
     std_str = format_latex(std_val)
-    legend_lst = [f'Entries = {entry_count}\nMean Value = {mean_str}\nStd = {std_str}']
+    legend_lst = [f'Entries = {entry_count}\nMean Value = {mean_str}\nStd = {std_str}\nOverflow = {overflow}']
     style_fig(ax, title, x_label, y_label, x_lim, y_lim, log, legend_lst, x_ticks, x_ticks_labels)
     if save:
         save_fig(fig, path, out_filename)
@@ -172,26 +184,27 @@ def plot_average_longitudinal_profile(df):
     std_vals = []
 
     # Get average ADC for each layer
-    for layer in LAYERS:
+    for i, layer in enumerate(LAYERS):
         # get layer energy
         layer_data = get_layer_energies(df, layer)
         if len(layer_data) == 0:
-            print(f"No events in layer index {layer}")
-            mean_vals.append(0)
-            std_vals.append(0)
+            print(f"No events in layer index {layer} (as numbered by electronics)")
+            mean_vals.append(np.nan)
+            std_vals.append(np.nan)
             continue
         mean_vals.append(np.mean(layer_data))
         std_vals.append(np.std(layer_data) / np.sqrt(len(layer_data)))
 
     # plot and save
-    scatter_plot(LAYERS, mean_vals, y_error=std_vals, title='Average Longitudinal Profile', x_label='Layer Index',
+    scatter_plot(LAYERS, mean_vals, y_error=std_vals, title='Average Longitudinal Profile', x_label='Layer Slot',
                  y_label='ADC Average', path=run_params.RESULTS_DIR, out_filename='Average_Longitudinal_Profile',
-                 x_ticks=LAYERS, x_ticks_labels=run_params.LAYERS_NAMES)
+                 x_ticks=LAYERS, x_ticks_labels=run_params.LAYERS_NAMES, invert_x=True)
     plt.close('all')
 
 
 def scatter_plot(x, y, x_error=None, y_error=None, log=False, title='Scatter plot', x_label='', y_label='',
-                 path='./', out_filename=None, x_lim=None, y_lim=None, x_ticks=None, x_ticks_labels=None):
+                 path='./', out_filename=None, x_lim=None, y_lim=None, x_ticks=None, x_ticks_labels=None,
+                 invert_x=False):
     """
     Creates a scatter plot of the data and saves.
 
@@ -209,6 +222,7 @@ def scatter_plot(x, y, x_error=None, y_error=None, log=False, title='Scatter plo
     :param tuple y_lim: Optional. y-axis limits. Default is None.
     :param list x_ticks: list of x ticks. Necessary if x_ticks_labels is not None
     :param list x_ticks_labels: list of x ticks labels
+    :param bool invert_x: boolean to invert the x-axis
     :return:
     """
     # set output file name
@@ -222,6 +236,8 @@ def scatter_plot(x, y, x_error=None, y_error=None, log=False, title='Scatter plo
     plt.grid(True)
 
     # set styling and save
+    if invert_x:
+        ax.invert_xaxis()
     style_fig(ax, title, x_label, y_label, x_lim, y_lim, log, x_ticks=x_ticks, x_ticks_labels=x_ticks_labels)
     save_fig(fig, path, out_filename)
 
@@ -235,44 +251,29 @@ def plot_all_channel_frequency(df):
     :param pandas.DataFrame df: input data
     :return:
     """
-    # get number of events
-    num_events = len(np.unique(df[EVENT_ID_COL].to_numpy()))
+    # # get number of events
+    # num_events = len(np.unique(df[EVENT_ID_COL].to_numpy()))
 
-    # Create a figure and a 3x4 grid of subplots
-    fig, ax = plt.subplots(3, 4, figsize=(30, 15), constrained_layout=True)
-    ax = ax.flatten()  # Flatten the 2D array of axes for easy iteration
-
-    im = None
     path = run_params.RESULTS_DIR
     # plot frequency per layer
-    for layer in LAYERS:
-        ax_num = layer
-        if layer >= 8:  # center 2 last plots (skip 1 axes index)
-            ax_num += 1
+    for i, layer in enumerate(LAYERS):
         # get channels data in given layer
         channel_data = filter_df(df, planes=layer)
         channel_data = unique_df(channel_data[[EVENT_ID_COL, CHANNEL_COL]])
         channel_hits = channel_data[CHANNEL_COL].to_numpy()
-        # calculate normalized frequency of entries per channel
-        freq = calc_freq(channel_hits)
-        freq /= num_events
-        # plot for single layer
-        im = plot_heatmap(freq, fig, ax[ax_num], x_label='Column', y_label='Row', path=path, v_min=0, v_max=1)
-        ax[ax_num].set_title(f"Layer {run_params.LAYERS_NAMES[layer]}")
+        if len(channel_hits) > 0:
+            # calculate number of hits per channel
+            freq = calc_freq(channel_hits)
+            # plot for single layer
+            plot_heatmap(freq, title=f"Layer Slot {run_params.LAYERS_NAMES[i]}", x_label='Column', y_label='Row', path=path,
+                         out_filename=f"channel_frequency_layer_slot_{run_params.LAYERS_NAMES[i]}.png")
+            plt.close('all')
 
-    # delete unused axes
-    fig.delaxes(ax[8])
-    fig.delaxes(ax[11])
-
-    # set joint colorbar and save
-    fig.colorbar(im, ax=ax.ravel().tolist())
-    save_fig(fig, path=path, out_filename="Channels_frequency_all_layers")
-    plt.close('all')
     return
 
 
 def plot_heatmap(data, fig=None, ax=None, log=False, title='Heatmap', x_label='', y_label='', path='./',
-                 out_filename=None, v_min=None, v_max=None):
+                 out_filename=None, v_min=None, v_max=None, colorbar_label="Counts"):
     """
     Plots a 2D histogram of the data and saves.
 
@@ -287,6 +288,7 @@ def plot_heatmap(data, fig=None, ax=None, log=False, title='Heatmap', x_label=''
     :param str out_filename: Optional. File name of the heatmap. Default is the title param.
     :param int v_min: min value for heatmap
     :param int v_max: max value for heatmap
+    :param str colorbar_label: label for colorbar
     :return: matplotlib.image.AxesImage object of result
     """
     # create figure if needed
@@ -302,16 +304,20 @@ def plot_heatmap(data, fig=None, ax=None, log=False, title='Heatmap', x_label=''
 
     # plot heatmap
     freq, cmap, colorscale = adjust_colors(data, log=log)
-    im = ax.imshow(data, vmin=v_min, vmax=v_max, cmap=cmap, norm=colorscale)
-    # for (i, j), z in np.ndenumerate(data):
-    #     ax.text(j, i, '{:0.2f}'.format(z), ha='center', va='center')
+    if v_min and v_max:
+        im = ax.imshow(data, vmin=v_min, vmax=v_max, cmap=cmap, norm=colorscale)
+    else:
+        im = ax.imshow(data, vmin=0, cmap=cmap, norm=colorscale)
 
     # set heatmap style and marks
     set_heatmap_style(ax)
 
     # set labels etc. and save figure
     style_fig(ax, title, x_label, y_label)
+
     if save:
+        fig.colorbar(im, ax=ax, orientation='vertical', label=colorbar_label)
+        style_fig(ax, title, x_label, y_label)
         save_fig(fig, path, out_filename)
 
     return im
@@ -405,7 +411,7 @@ def save_fig(fig, path, out_filename):
     :return:
     """
     # set full path
-    full_path = path + f'/{out_filename}'
+    full_path = path + f'{out_filename}'
     # verify correct file extension
     full_path = verify_file_extension(full_path, '.png')
     # save
@@ -444,3 +450,16 @@ def get_equal_bins(min_val, max_val, step):
     :return: numpy.array of bin edges
     """
     return np.arange(min_val, max_val + step, step=step)
+
+
+def set_lims(data):
+    data = np.array(data)
+    x_lim = None
+    if len(data) > 0:
+        x_min = np.min(data)
+        x_mean = np.mean(data)
+        x_std = np.std(data)
+        x_max = x_mean + 5 * x_std
+        if x_max > x_min:
+            x_lim = (x_min, x_max)
+    return x_lim

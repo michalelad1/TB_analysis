@@ -1,10 +1,14 @@
-from .. import io_funcs
+from .. import io_funcs, utils
 import awkward as ak
 import uproot
 from matplotlib import pyplot as plt
 import numpy as np
 
-run_number = int(input("Enter the run number: "))
+# get args from user
+arg_params = [["-r", "--runnum", int, "the run number"]]
+args = utils.get_args(arg_params)
+run_number = args.runnum
+
 dut_df = io_funcs.root_to_df(file_name=f"./TB_analysis/dut_tele_sync_merge/TB_FIRE_{run_number}_hits.root", tree_name="Hits")
 tele_df = io_funcs.root_to_df(file_name=f"./TB_analysis/dut_tele_sync_merge/run_{run_number}_telescope.root", tree_name="TrackingInfo/Tracks")
 
@@ -51,7 +55,7 @@ for col in full_merged_df.columns:
         data[col] = full_merged_df[col].to_numpy()
 
 # Write to a new ROOT file
-output_file = f"Merged_sentel_run_{run_number}.root"
+output_file = f"./TB_analysis/dut_tele_sync_merge/Merged_sentel_run_{run_number}.root"
 with uproot.recreate(output_file) as fout:
     fout["MergedTree"] = data
 

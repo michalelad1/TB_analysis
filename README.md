@@ -47,14 +47,14 @@ These files must contain the following trees:
 From the project directory, run:
 
 ```bash
-python ./TB_analysis/dut_tele_sync_merge/merge_sentel.py
+python -m TB_analysis.dut_tele_sync_merge.merge_sentel -r [run_number]
+# Example: python -m TB_analysis.dut_tele_sync_merge.merge_sentel -r 1025
 ```
 
-You will be prompted to enter the run number (e.g., `1025`).
 
 #### Output
 
-The merged ROOT file will be created in the current directory as:
+The merged ROOT file will be created in the directory `./TB_analysis/dut_tele_sync_merge/` as:
 
 ```
 Merged_sentel_run_<run_number>.root

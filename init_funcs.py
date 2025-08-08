@@ -92,7 +92,7 @@ def init_run(func_to_run):
 
     try:
         # get TB data
-        df = get_data(run_params.INPUT_FILE_PATH, run_params.INPUT_FILE_TYPE,
+        df = get_data(run_params.DUT_INPUT_FILE, run_params.INPUT_FILE_TYPE,
                       root_tree=run_params.DUT_ROOT_TREE, parquet_filter=run_params.PARQUET_FILTER)
 
         # Create folders for plots

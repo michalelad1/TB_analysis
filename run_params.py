@@ -4,20 +4,23 @@
 RUN_NUM = None  # run number
 RESULTS_DIR = None  # relative directory to save results
 INPUT_FILE_TYPE = None  # '.root' or '.parquet'
-INPUT_FILE_PATH = None  # path to input files
+DUT_INPUT_FILE = None  # path to input files
 PARQUET_FILTER = None  # optional filter to apply when reading .parquet files
 
 # ---------- CONSTANTS ---------- #
 ROWS = 13
 COLS = 20
-DUT_ROOT_TREE = "Hits"  # name of ROOT tree of input file
+DUT_ROOT_TREE = "Hits"  # name of ROOT tree of DUT input file
+TELE_ROOT_TREE = "TrackingInfo/Tracks"  # name of ROOT tree of telescope input file
 LAYERS = list(range(10, -1, -1))  # layer numbers
 LAYERS_NAMES = [str(i) for i in range(0, 11)]  # option to change the layer numbers (to match #W plates)
 CHANNELS = list(range(256))  # channel numbers (per layer)
 NOISY_CHANNELS = {}  # channels to be ignored (should be a set of tuples (layer, channel))
 
 # Directories and file names
-INPUT_FILE_REGEX = "./TB_FIRE_*_hits"  # directory and name pattern of input files
+DUT_FILE_PATH = "./detector/Converted/ZS_Data/"
+TELE_FILE_PATH = "./telescope/"
+INPUT_FILE_REGEX = "TB_FIRE_*_hits"  # directory and name pattern of input files
 ALLOWED_INPUT_EXT = [".root", ".parquet"]  # allowed input file types
 
 # DUT DataFrame column names
@@ -49,8 +52,8 @@ def init_vars(run, ext, res_dir, filters):
     global INPUT_FILE_TYPE
     INPUT_FILE_TYPE = ext
 
-    global INPUT_FILE_PATH
-    INPUT_FILE_PATH = INPUT_FILE_REGEX[:-6] + str(RUN_NUM) + "_hits" + INPUT_FILE_TYPE
+    global DUT_INPUT_FILE
+    DUT_INPUT_FILE = DUT_FILE_PATH + INPUT_FILE_REGEX[:-6] + str(RUN_NUM) + "_hits" + INPUT_FILE_TYPE
 
     global PARQUET_FILTER
     PARQUET_FILTER = filters

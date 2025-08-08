@@ -14,7 +14,7 @@ To get started with the TB_analysis toolkit, follow these setup instructions:
     pip install pandas numpy matplotlib uproot pyarrow awkward
     ```
 
-3.  **Clone the Repository:** Clone the TB-Fast-Analysis repository to your local machine using Git and navigate into the project directory:
+3.  **Clone the Repository:** Clone the TB_analysis repository to your local machine using Git and navigate into the project directory:
 
     ```bash
     git clone https://github.com/michalelad1/TB_analysis.git
@@ -28,15 +28,15 @@ The merging workflow is managed by the `merge_sentel.py` script.
 
 #### Input Files
 
-Place the following files in `./TB_analysis/dut_tele_sync_merge/`:
+Place the following files in the correct subdirectories:
 
 - **DUT file:**  
-  `TB_FIRE_<run_number>_hits.root`  
-  Example: `TB_FIRE_1025_hits.root`
+  `./detector/Converted/ZS_Data/TB_FIRE_<run_number>_hits.root`  
+  Example: `./detector/Converted/ZS_Data/TB_FIRE_1025_hits.root`
 
 - **Telescope file:**  
-  `run_<run_number>_telescope.root`  
-  Example: `run_1025_telescope.root`
+  `./telescope/run_<run_number}_telescope.root`  
+  Example: `./telescope/run_1025_telescope.root`
 
 These files must contain the following trees:
 - DUT: tree named `"Hits"`
@@ -51,23 +51,26 @@ python -m TB_analysis.dut_tele_sync_merge.merge_sentel -r [run_number]
 # Example: python -m TB_analysis.dut_tele_sync_merge.merge_sentel -r 1025
 ```
 
+- The `-r` or `--runnum` argument is required and specifies the run number to process.
+- The script will look for the input files in the directories as described above.
 
 #### Output
 
-The merged ROOT file will be created in the directory `./TB_analysis/dut_tele_sync_merge/` as:
+The merged ROOT file will be created in the directory `./merged_dut_tele/` as:
 
 ```
-Merged_sentel_run_<run_number>.root
+TB25_Run_<run_number>.root
 ```
-Example: `Merged_sentel_run_1025.root`
+Example: `TB25_Run_1025.root`
 
-This file contains the merged tree (`MergedTree`) with all synchronized branches from both input files.
+This file contains the merged tree (`HitTracks`) with all synchronized branches from both input files.
 
 #### Notes
 
-- The script automatically handles jagged arrays and scalar branches.
+- The script automatically handles both scalar and jagged (vector-like) branches.
 - After writing, it verifies the number of entries and branches in the output file and prints the branch names.
-- Make sure all dependencies (`uproot`, `awkward`, `numpy`, `matplotlib`, and your local `io_funcs.py`) are installed and accessible.
+- Make sure all dependencies (`uproot`, `awkward`, `numpy`, `matplotlib`, and your local `io_funcs.py` and `utils.py`) are installed and accessible.
+- The script expects the input files to be present and named exactly as described above.
 
 ### Other Analysis
 

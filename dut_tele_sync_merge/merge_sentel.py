@@ -1,20 +1,25 @@
-from .. import io_funcs, utils
+from .. import io_funcs, utils, run_params
 import awkward as ak
 import uproot
 from matplotlib import pyplot as plt
 import numpy as np
+import os
 
 # get args from user
 arg_params = [["-r", "--runnum", int, "the run number"]]
 args = utils.get_args(arg_params)
 run_number = args.runnum
 
-dut_df = io_funcs.root_to_df(file_name=f"./TB_analysis/dut_tele_sync_merge/TB_FIRE_{run_number}_hits.root", tree_name="Hits")
-tele_df = io_funcs.root_to_df(file_name=f"./TB_analysis/dut_tele_sync_merge/run_{run_number}_telescope.root", tree_name="TrackingInfo/Tracks")
+dut_df = io_funcs.root_to_df(file_name=run_params.DUT_FILE_PATH + f"TB_FIRE_{run_number}_hits.root", tree_name=run_params.DUT_ROOT_TREE)
+tele_df = io_funcs.root_to_df(file_name=run_params.TELE_FILE_PATH + f"run_{run_number}_telescope.root", tree_name=run_params.TELE_ROOT_TREE)
 
 dut_df["timestamp"] = [float(time[0]) for time in dut_df["timestamp"]]
 tele_df["timestamp"] = [float(time[0]) for time in tele_df["timestamp"]]
 tele_df["triggerid"] = [int(i[0]) for i in tele_df["triggerid"]]
+
+# rename common columns
+dut_df.rename(columns={'timestamp': 'timestamp_dut'}, inplace=True)
+tele_df.rename(columns={'timestamp': 'timestamp_tele'}, inplace=True)
 
 # Merge and reset index, but drop the index column
 full_merged_df = dut_df.merge(
@@ -55,15 +60,17 @@ for col in full_merged_df.columns:
         data[col] = full_merged_df[col].to_numpy()
 
 # Write to a new ROOT file
-output_file = f"./TB_analysis/dut_tele_sync_merge/Merged_sentel_run_{run_number}.root"
+out_dir = "./merged_dut_tele/"
+os.makedirs(out_dir, exist_ok=True)
+output_file = out_dir + f"TB25_Run_{run_number}.root"
 with uproot.recreate(output_file) as fout:
-    fout["MergedTree"] = data
+    fout["HitTracks"] = data
 
 print(f"Merged tree written to {output_file}")
 
 # Test: Verify ROOT file contents
 with uproot.open(output_file) as fin:
-    tree = fin["MergedTree"]
+    tree = fin["HitTracks"]
     print("\nOutput ROOT file verification:")
     print(f"Number of entries: {tree.num_entries}")
     print(f"Branch names: {list(tree.keys())}")
